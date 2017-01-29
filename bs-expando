@@ -1,0 +1,171 @@
+! function($, window, undefined) {
+  'use strict';
+
+	/**
+   * Expando BS Plugin Object
+   * @constructor
+   * @param {objet} element - Element to turn into Expando object
+   * @param {object} options - Configuration object reperesenting options to the Expando instance/object.
+   */
+  var Expando = function(element, options) {
+    this.options = options;
+    this.$body = $(document.body);
+    this.$element = $(element);
+
+    this.init(options);
+  };
+
+  Expando.VERSION = '1.0.1';
+
+  Expando.TRANSITION_DURATION = 1500;
+  Expando.OPEN = 'open';
+  Expando.COLLAPSE = 'collapse';
+  Expando.COLLAPSED = 'collapsed';
+  Expando.TRANSITIONS = 'transitionend webkitTransitionEnd oTransitionEnd MSTransitionEnd';
+
+  Expando.DEFAULTS = {
+    transition: 1500,
+    state: 'closed'
+  };
+	
+  /**
+  * Close function that closes the current expando element/s
+  * @param {object} element - Current element/s to target and close
+  */
+  Expando.prototype.close = function(element) {
+
+    var el = element ? element : this.$element;
+
+    if (!el || el === undefined) {
+      return false
+    }
+
+    el.addClass(Expando.COLLAPSE);
+
+    return true;
+  }
+
+	 /**
+  * Toggle individual function that closes the current expando element/s; e.g. does not toggle other expando objects states
+  * @param {object} el - Current element to toggle independently
+  */
+  Expando.prototype.toggleIndividual = function(el) {
+    var self = this;
+    el
+      .off(Expando.TRANSITIONS)
+      .on(Expando.TRANSITIONS, function() {
+        if (el.hasClass('collapse')) {
+          el.addClass('collapsed');
+        }
+      });
+
+    el.removeClass(Expando.COLLAPSED);
+
+    setTimeout(function() {
+      el.toggleClass(Expando.COLLAPSE);
+    }, 0);
+  }
+
+	 /**
+  * Toggle singular function that closes the current expando element/s and toggles other expando elements with data-singular=true attribute
+  * @param {object} element - Current element/s to target and close.
+  */
+  Expando.prototype.toggleSingular = function(el) {
+    var singulars = $('[data-singular="true"]'),
+      els = $('[data-singular="true"]:not(.collapse)').not(el),
+      self = this;
+
+    singulars.off('transitionend webkitTransitionEnd oTransitionEnd MSTransitionEnd');
+
+		//If no other singular elements open then toggle current element
+    if (!els.length) {
+      el
+        .off(Expando.TRANSITIONS)
+        .on(Expando.TRANSITIONS, function() {
+          if (el.hasClass('collapse')) {
+            el.addClass('collapsed');
+          }
+        });
+
+      el.removeClass(Expando.COLLAPSED);
+
+      setTimeout(function() {
+        el.toggleClass(Expando.COLLAPSE);
+      }, 0);
+    } else { //Othere singular expandos exist and are open; toggle them closed then toggle current element
+      els
+        .off(Expando.TRANSITIONS)
+        .on(Expando.TRANSITIONS, function() {
+          if ($(this).hasClass(Expando.COLLAPSE)) {
+            $(this).addClass(Expando.COLLAPSED);
+          }
+
+          self.toggleIndividual(el);
+        });
+
+      this.close(els);
+    }
+  }
+
+   /**
+    * Toggle function that toggles the current expando element based on it's datat-singular state
+    * @param {object} element - Current element to target and close
+    */
+  Expando.prototype.toggle = function(element) {
+    var self = this,
+      el = element || this.$element;
+
+    if (el.attr('data-singular') && Boolean(el.data('singular')) === true) {
+      this.toggleSingular(el);
+    } else {
+      this.toggleIndividual(el);
+    }
+
+    return true;
+  };
+
+	/**
+  * Init function that initializes expando plugin on element specified
+  * @param {object} element - Current element to bind expando plugin to
+  */
+  Expando.prototype.init = function(options) {
+    var $expando = this.$element,
+      self = this;
+
+		//Update transition duration if set and not equal to default.
+    if (options.TRANSITION_DURATION && options.TRANSITION_DURATION != Expando.TRANSITION_DURATION) {
+      var duration = (parseFloat(options.TRANSITION_DURATION / 1000).toFixed(1) + 's');
+      $('.expando').css('transitionDuration', duration);
+    }
+
+    $expando.siblings('a.toggle').on('click', function(e) {
+      //Prevent propagation and default so we can expand/close element
+      e.preventDefault();
+      e.stopPropagation();
+
+      self.toggle();
+    });
+  };
+
+  // expando PLUGIN DEFINITION
+  // =========================
+
+  function Plugin(option) {
+
+    return this.each(function() {
+      var $this = $(this);
+      var data = $this.data('bs.expando');
+      var options = $.extend({}, Expando.DEFAULTS, $this.data(), typeof option == 'object' && option);
+
+      if (!data && /destroy|hide/.test(option)) return; //Test if no data and destroy; return
+      if (!data) $this.data('bs.expando', (data = new Expando(this, options))); //If no data then creat new instance of Expando and attach
+      if (typeof option === 'string') data[option](); //If option is string then execute that method;
+    })
+  }
+
+  var old = $.fn.expando;
+
+  $.fn.expando = Plugin;
+  $.fn.expando.Constructor = Expando;
+
+}(jQuery, window);
