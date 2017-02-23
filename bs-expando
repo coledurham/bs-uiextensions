@@ -27,43 +27,59 @@
     transition: 1500,
     state: 'closed'
   };
-	
+  
+  Expando.prototype.open = function(element){
+  	return new Promise(function (resolve, reject){
+     	element.removeClass('collapse');
+			setTimeout(function(){
+        resolve(true);
+      }, 0);
+    });
+  };
+  
+  Expando.prototype.uncollapse = function(element){
+  	return new Promise(function (resolve, reject){
+    	element.removeClass('collapsed');
+			setTimeout(function(){
+        resolve(true);
+      }, 0);
+    });
+  };
+  
+  Expando.prototype.close = function(element){
+  	return new Promise(function (resolve, reject){
+    	element.addClass('collapse');
+			setTimeout(function(){
+      	resolve(true);
+      }, 0);
+    });
+  };
+  
+  Expando.prototype.collapse = function(element){
+  	return new Promise(function (resolve, reject){
+    	element.addClass('collapsed');
+			setTimeout(function(){
+      	resolve(true);
+      }, 0);
+    });
+  };
+  
   /**
-  * Close function that closes the current expando element/s
-  * @param {object} element - Current element/s to target and close
-  */
-  Expando.prototype.close = function(element) {
-
-    var el = element ? element : this.$element;
-
-    if (!el || el === undefined) {
-      return false
-    }
-
-    el.addClass(Expando.COLLAPSE);
-
-    return true;
-  }
-
-	 /**
   * Toggle individual function that closes the current expando element/s; e.g. does not toggle other expando objects states
   * @param {object} el - Current element to toggle independently
   */
   Expando.prototype.toggleIndividual = function(el) {
     var self = this;
-    el
-      .off(Expando.TRANSITIONS)
-      .on(Expando.TRANSITIONS, function() {
-        if (el.hasClass('collapse')) {
-          el.addClass('collapsed');
-        }
-      });
-
-    el.removeClass(Expando.COLLAPSED);
-
-    setTimeout(function() {
-      el.toggleClass(Expando.COLLAPSE);
-    }, 0);
+    
+		if(el.hasClass('collapse')){
+    	self
+    	.uncollapse(el)
+      .then(self.open.bind(self, el));
+    }
+    else{
+    	self
+    	.close(el);
+    }
   }
 
 	 /**
@@ -71,48 +87,32 @@
   * @param {object} element - Current element/s to target and close.
   */
   Expando.prototype.toggleSingular = function(el) {
-    var singulars = $('[data-singular="true"]'),
-      els = $('[data-singular="true"]:not(.collapse)').not(el),
-      self = this;
-
-    singulars.off('transitionend webkitTransitionEnd oTransitionEnd MSTransitionEnd');
-
-		//If no other singular elements open then toggle current element
-    if (!els.length) {
-      el
-        .off(Expando.TRANSITIONS)
-        .on(Expando.TRANSITIONS, function() {
-          if (el.hasClass('collapse')) {
-            el.addClass('collapsed');
-          }
-        });
-
-      el.removeClass(Expando.COLLAPSED);
-
-      setTimeout(function() {
-        el.toggleClass(Expando.COLLAPSE);
-      }, 0);
-    } else { //Othere singular expandos exist and are open; toggle them closed then toggle current element
-      els
-        .off(Expando.TRANSITIONS)
-        .on(Expando.TRANSITIONS, function() {
-          if ($(this).hasClass(Expando.COLLAPSE)) {
-            $(this).addClass(Expando.COLLAPSED);
-          }
-
+    var els = $('[data-singular="true"]:not(.collapse)').not(el),
+      self = this,
+      transitionCount = 0;
+      
+    if(els.length){
+    	//Attach one off listner for the set of existing siblings that need to be closed; avoids having to do off().on()
+    	els.one(Expando.TRANSITIONS, function(curr){
+				++transitionCount;
+        
+        if(transitionCount == els.length){
           self.toggleIndividual(el);
-        });
-
-      this.close(els);
+					transitionCount = 0;
+        }
+      });
+      
+    	self
+      	.close(els);
+    }
+    else{
+    	self.toggleIndividual(el);
     }
   }
-
-   /**
-    * Toggle function that toggles the current expando element based on it's datat-singular state
-    * @param {object} element - Current element to target and close
-    */
-  Expando.prototype.toggle = function(element) {
-    var self = this,
+  
+	Expando.prototype.toggle = function(element){
+  
+  	var self = this,
       el = element || this.$element;
 
     if (el.attr('data-singular') && Boolean(el.data('singular')) === true) {
@@ -122,6 +122,17 @@
     }
 
     return true;
+  };
+  
+  Expando.prototype.registerEvents = function(element){
+  	var el = element || $('body');
+    var self = this;
+    
+    $('.expando').on(Expando.TRANSITIONS, function(){
+    	if($(this).hasClass('collapse')){
+				self.collapse($(this));
+      }
+    });
   };
 
 	/**
@@ -137,6 +148,8 @@
       var duration = (parseFloat(options.TRANSITION_DURATION / 1000).toFixed(1) + 's');
       $('.expando').css('transitionDuration', duration);
     }
+
+		self.registerEvents();
 
     $expando.siblings('a.toggle').on('click', function(e) {
       //Prevent propagation and default so we can expand/close element
