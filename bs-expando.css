@@ -1,0 +1,19 @@
+.content-expando.collapse {
+  max-height: 0px;
+}
+
+.expando {
+  max-height: 200px;
+  -webkit-transition: max-height 1.5s;
+  -moz-transition: max-height 1.5s;
+  transition: max-height 1.5s;
+  overflow: hidden;
+  display: block;
+  visibility: visible;
+  border: none;
+  margin: 0;
+}
+
+.expando.collapse {
+  max-height: 0px;
+}
